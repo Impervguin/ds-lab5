@@ -72,6 +72,13 @@ jobs:
               --set image.tag="$IMAGE_TAG" \
               --wait --timeout 5m
           done
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+
+      - name: Install newman
+        run: npm install -g newman
 
       - name: Run API Tests
         uses: matt-ball/newman-action@master
