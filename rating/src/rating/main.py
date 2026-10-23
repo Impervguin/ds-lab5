@@ -17,6 +17,7 @@ logger = get_logger(__name__)
 async def lifespan(app: FastAPI):
     container: Container = app.state.container
     settings = container.config()
+    container.token_verifier()
 
     await asyncio.to_thread(apply_migrations, settings.database_url, settings.migration_lock_key)
 
@@ -31,7 +32,7 @@ def create_app(container: Container | None = None) -> FastAPI:
     logger.info("creating application")
 
     container = container or Container()
-    container.wire(modules=["rating.api.rating.router"])
+    container.wire(modules=["rating.api.auth", "rating.api.rating.router"])
 
     app = FastAPI(title="Rating Service", lifespan=lifespan)
     app.state.container = container

@@ -24,16 +24,14 @@ func NewReservationClient(transport HttpDoer, retryer *HttpRetryer) *Reservation
 
 func (c *ReservationClient) ListReservations(
 	ctx context.Context,
-	username string,
 	status domain.ReservationStatus,
 ) ([]domain.Reservation, error) {
 	var response []reservationResponse
 	if err := c.transport.do(ctx, call{
-		method:   http.MethodGet,
-		path:     "/api/v1/reservations",
-		query:    statusQuery(status),
-		username: username,
-		out:      &response,
+		method: http.MethodGet,
+		path:   "/api/v1/reservations",
+		query:  statusQuery(status),
+		out:    &response,
 	}); err != nil {
 		return nil, err
 	}
@@ -47,18 +45,16 @@ func (c *ReservationClient) ListReservations(
 
 func (c *ReservationClient) CountReservations(
 	ctx context.Context,
-	username string,
 	status domain.ReservationStatus,
 ) (int, error) {
 	var response struct {
 		Count int `json:"count"`
 	}
 	if err := c.transport.do(ctx, call{
-		method:   http.MethodGet,
-		path:     "/api/v1/reservations/count",
-		query:    statusQuery(status),
-		username: username,
-		out:      &response,
+		method: http.MethodGet,
+		path:   "/api/v1/reservations/count",
+		query:  statusQuery(status),
+		out:    &response,
 	}); err != nil {
 		return 0, err
 	}
@@ -67,15 +63,13 @@ func (c *ReservationClient) CountReservations(
 
 func (c *ReservationClient) CreateReservation(
 	ctx context.Context,
-	username string,
 	request domain.NewReservation,
 	inQueue bool,
 ) (*domain.Reservation, error) {
 	var response reservationResponse
 	if err := doOrQueue(ctx, c.transport, c.retryer, inQueue, call{
-		method:   http.MethodPost,
-		path:     "/api/v1/reservations",
-		username: username,
+		method: http.MethodPost,
+		path:   "/api/v1/reservations",
 		body: createReservationRequest{
 			BookUID:         request.BookUID,
 			LibraryUID:      request.LibraryUID,
@@ -93,18 +87,16 @@ func (c *ReservationClient) CreateReservation(
 
 func (c *ReservationClient) ReturnReservation(
 	ctx context.Context,
-	username string,
 	reservationUID uuid.UUID,
 	date domain.Date,
 	inQueue bool,
 ) (*domain.Reservation, error) {
 	var response reservationResponse
 	if err := doOrQueue(ctx, c.transport, c.retryer, inQueue, call{
-		method:   http.MethodPost,
-		path:     "/api/v1/reservations/" + reservationUID.String() + "/return",
-		username: username,
-		body:     returnReservationRequest{Date: date},
-		out:      &response,
+		method: http.MethodPost,
+		path:   "/api/v1/reservations/" + reservationUID.String() + "/return",
+		body:   returnReservationRequest{Date: date},
+		out:    &response,
 		statuses: map[int]error{
 			http.StatusNotFound: domain.ErrReservationNotFound,
 			http.StatusConflict: domain.ErrReservationClosed,

@@ -2,8 +2,9 @@ from typing import Annotated
 from uuid import UUID
 
 from dependency_injector.wiring import Provide, inject
-from fastapi import APIRouter, Depends, Header, Query
+from fastapi import APIRouter, Depends, Query
 
+from reservation.api.auth import Username
 from reservation.di import Container
 from reservation.domain import ReservationStatus
 from reservation.usecases import (
@@ -23,7 +24,6 @@ from .dto import (
 
 reservations_router = APIRouter(prefix="/api/v1/reservations", tags=["reservations"])
 
-Username = Annotated[str, Header(alias="X-User-Name", min_length=1, max_length=80)]
 StatusFilter = Annotated[ReservationStatus | None, Query()]
 
 

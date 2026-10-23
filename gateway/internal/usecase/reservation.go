@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/Impervguin/ds-lab2/gateway/internal/auth"
 	"github.com/Impervguin/ds-lab2/gateway/internal/domain"
 	"github.com/Impervguin/ds-lab2/gateway/internal/logger"
 )
@@ -43,8 +44,8 @@ func NewReservationUseCase(
 	}
 }
 
-func (uc *ReservationUseCase) ListReservations(ctx context.Context, username string) ([]domain.ReservationDetails, error) {
-	reservations, err := uc.reservations.ListReservations(ctx, username, "")
+func (uc *ReservationUseCase) ListReservations(ctx context.Context) ([]domain.ReservationDetails, error) {
+	reservations, err := uc.reservations.ListReservations(ctx, "")
 	if err != nil {
 		return nil, unavailable(err, ErrReservationUnavailable)
 	}
@@ -64,22 +65,21 @@ func (uc *ReservationUseCase) ListReservations(ctx context.Context, username str
 
 func (uc *ReservationUseCase) TakeBook(
 	ctx context.Context,
-	username string,
 	command TakeBookCommand,
 ) (*domain.TakenBook, error) {
-	rented, err := uc.reservations.CountReservations(ctx, username, domain.StatusRented)
+	rented, err := uc.reservations.CountReservations(ctx, domain.StatusRented)
 	if err != nil {
 		return nil, unavailable(err, ErrReservationUnavailable)
 	}
 
-	rating, err := uc.ratings.GetRating(ctx, username)
+	rating, err := uc.ratings.GetRating(ctx)
 	if err != nil {
 		return nil, unavailable(err, ErrRatingUnavailable)
 	}
 
 	if rented >= rating.MaxBooks {
 		uc.log.InfoContext(ctx, "book limit reached",
-			slog.String("username", username),
+			slog.String("username", auth.Username(ctx)),
 			slog.Int("rented", rented),
 			slog.Int("maxBooks", rating.MaxBooks),
 		)
@@ -91,7 +91,7 @@ func (uc *ReservationUseCase) TakeBook(
 		return nil, unavailable(err, ErrLibraryUnavailable)
 	}
 
-	reservation, err := uc.reservations.CreateReservation(ctx, username, domain.NewReservation{
+	reservation, err := uc.reservations.CreateReservation(ctx, domain.NewReservation{
 		BookUID:         command.BookUID,
 		LibraryUID:      command.LibraryUID,
 		TillDate:        command.TillDate,
@@ -110,14 +110,14 @@ func (uc *ReservationUseCase) TakeBook(
 	return &domain.TakenBook{ReservationDetails: *described, Rating: *rating}, nil
 }
 
-func (uc *ReservationUseCase) ReturnBook(ctx context.Context, username string, command ReturnBookCommand) error {
-	reservation, err := uc.reservations.ReturnReservation(ctx, username, command.ReservationUID, command.Date, false)
+func (uc *ReservationUseCase) ReturnBook(ctx context.Context, command ReturnBookCommand) error {
+	reservation, err := uc.reservations.ReturnReservation(ctx, command.ReservationUID, command.Date, false)
 	if err != nil {
 		return unavailable(err, ErrReservationUnavailable)
 	}
 
 	log := uc.log.With(
-		slog.String("username", username),
+		slog.String("username", auth.Username(ctx)),
 		slog.String("reservationUid", reservation.ReservationUID.String()),
 	)
 
@@ -129,7 +129,7 @@ func (uc *ReservationUseCase) ReturnBook(ctx context.Context, username string, c
 		return unavailable(err, ErrLibraryUnavailable)
 	}
 
-	change, err := uc.ratings.CloseReservation(ctx, username, domain.ClosedReservation{
+	change, err := uc.ratings.CloseReservation(ctx, domain.ClosedReservation{
 		ReservationUID:    reservation.ReservationUID,
 		Status:            reservation.Status,
 		ConditionAtRent:   reservation.ConditionAtRent,

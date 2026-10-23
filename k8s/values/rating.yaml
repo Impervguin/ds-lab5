@@ -5,6 +5,10 @@ port: 8050
 
 env:
   LOG_LEVEL: INFO
+  OIDC_ISSUER: https://dev-dvkqkgi8bveeit23.eu.auth0.com/
+  OIDC_AUDIENCE: https://ds5.lab.impilab.ru/api
+  OIDC_JWKS_URL: https://dev-dvkqkgi8bveeit23.eu.auth0.com/.well-known/jwks.json
+  OIDC_USERNAME_CLAIM: sub
 
 secretEnv:
   DATABASE_URL: postgresql://program:test@postgres:5432/ratings

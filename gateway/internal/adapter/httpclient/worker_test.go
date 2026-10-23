@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/Impervguin/ds-lab2/gateway/internal/auth"
 	"github.com/Impervguin/ds-lab2/gateway/internal/usecase"
 )
 
@@ -27,17 +28,19 @@ type scriptedDoer struct {
 	mutex   sync.Mutex
 	answers []error
 	calls   chan call
+	tokens  chan string
 }
 
 func newScriptedDoer(answers ...error) *scriptedDoer {
-	return &scriptedDoer{answers: answers, calls: make(chan call, 16)}
+	return &scriptedDoer{answers: answers, calls: make(chan call, 16), tokens: make(chan string, 16)}
 }
 
-func (d *scriptedDoer) do(_ context.Context, c call) error {
+func (d *scriptedDoer) do(ctx context.Context, c call) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
 	d.calls <- c
+	d.tokens <- auth.Token(ctx)
 	if len(d.answers) == 0 {
 		return nil
 	}
@@ -166,6 +169,19 @@ func TestRetryerGivesUpOnARejectedRetry(t *testing.T) {
 	doer.waitCall(t)
 	doer.waitCall(t)
 	doer.assertNoCall(t, 50*time.Millisecond)
+}
+
+func TestRetryerForwardsTheTokenOfTheQueuingRequest(t *testing.T) {
+	doer := newScriptedDoer(errRefused)
+	ctx := auth.WithIdentity(context.Background(), auth.Identity{Username: "Test Max", Token: "the-token"})
+
+	err := doOrQueue(ctx, doer, startRetryer(t), true, call{path: "/return"})
+
+	assert.ErrorIs(t, err, usecase.ErrQueued)
+	doer.waitCall(t)
+	doer.waitCall(t)
+	assert.Equal(t, "the-token", <-doer.tokens)
+	assert.Equal(t, "the-token", <-doer.tokens, "the retry lost the token")
 }
 
 func TestRetryerDelayGrowsUpToTheLimit(t *testing.T) {

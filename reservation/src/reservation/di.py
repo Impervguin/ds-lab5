@@ -1,6 +1,7 @@
 from dependency_injector import containers, providers
 from psycopg_pool import AsyncConnectionPool
 
+from reservation.auth import TokenVerifier
 from reservation.config import get_settings
 from reservation.repositories.psycopg import PsycopgUnitOfWork
 from reservation.usecases import (
@@ -19,6 +20,14 @@ class Container(containers.DeclarativeContainer):
         AsyncConnectionPool,
         conninfo=config.provided.database_url,
         open=False,
+    )
+
+    token_verifier = providers.Singleton(
+        TokenVerifier.from_jwks,
+        issuer=config.provided.oidc_issuer,
+        audience=config.provided.oidc_audience,
+        jwks_url=config.provided.oidc_jwks_url,
+        username_claim=config.provided.oidc_username_claim,
     )
 
     uow = providers.Factory(PsycopgUnitOfWork, pool=pool)

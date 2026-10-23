@@ -2,11 +2,22 @@ from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from .common import ErrorDescription, ValidationErrorResponse
+from .auth import Unauthorized
+from .common import ErrorDescription, ErrorResponse, ValidationErrorResponse
 
 
 def install_exception_handlers(app: FastAPI) -> None:
+    app.add_exception_handler(Unauthorized, _unauthorized)
     app.add_exception_handler(RequestValidationError, _invalid_request)
+
+
+async def _unauthorized(_request: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, Unauthorized)
+    return JSONResponse(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        content=ErrorResponse(message=exc.message).model_dump(by_alias=True),
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 async def _invalid_request(_request: Request, exc: Exception) -> JSONResponse:

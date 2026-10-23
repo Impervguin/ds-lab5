@@ -13,11 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/Impervguin/ds-lab2/gateway/internal/adapter/httpclient"
+	"github.com/Impervguin/ds-lab2/gateway/internal/auth"
 	"github.com/Impervguin/ds-lab2/gateway/internal/domain"
 )
 
 const (
-	username          = "Test Max"
+	token             = "header.payload.signature"
 	libraryUIDValue   = "83575e12-7ce0-48ee-9931-51919ff3c9ee"
 	bookUIDValue      = "f7cdc58f-2caf-4b15-9727-f89dcc629b27"
 	reservationUIDVal = "f464ca3a-fcf7-4e3f-86f0-76c7bba96f72"
@@ -28,6 +29,11 @@ var (
 	bookUID        = uuid.MustParse(bookUIDValue)
 	reservationUID = uuid.MustParse(reservationUIDVal)
 )
+
+// authenticated is the context of a request that passed the auth middleware.
+func authenticated() context.Context {
+	return auth.WithIdentity(context.Background(), auth.Identity{Username: "Test Max", Token: token})
+}
 
 type upstream struct {
 	method  string
@@ -146,11 +152,11 @@ func TestLibraryClientReportsAnUnknownBook(t *testing.T) {
 func TestReservationClientCountsTheBooksOnHands(t *testing.T) {
 	recorded, url := newUpstream(t, `{"count":3}`)
 
-	count, err := httpclient.NewReservationClient(httpclient.NewBaseClient(url), nil).CountReservations(context.Background(), username, domain.StatusRented)
+	count, err := httpclient.NewReservationClient(httpclient.NewBaseClient(url), nil).CountReservations(authenticated(), domain.StatusRented)
 
 	require.NoError(t, err)
 	assert.Equal(t, "/api/v1/reservations/count?status=RENTED", recorded.target)
-	assert.Equal(t, username, recorded.headers.Get("X-User-Name"))
+	assert.Equal(t, "Bearer "+token, recorded.headers.Get("Authorization"))
 	assert.Equal(t, 3, count)
 }
 
@@ -159,7 +165,7 @@ func TestReservationClientListsEveryReservationOfTheUser(t *testing.T) {
 		"libraryUid":"`+libraryUIDValue+`","status":"RENTED","startDate":"2021-10-09","tillDate":"2021-10-11",
 		"conditionAtRent":"EXCELLENT"}]`)
 
-	reservations, err := httpclient.NewReservationClient(httpclient.NewBaseClient(url), nil).ListReservations(context.Background(), username, "")
+	reservations, err := httpclient.NewReservationClient(httpclient.NewBaseClient(url), nil).ListReservations(authenticated(), "")
 
 	require.NoError(t, err)
 	assert.Equal(t, "/api/v1/reservations", recorded.target)
@@ -177,7 +183,7 @@ func TestReservationClientCreatesAReservationWithTheIssuedCondition(t *testing.T
 	tillDate, err := domain.ParseDate("2021-10-11")
 	require.NoError(t, err)
 
-	reservation, err := httpclient.NewReservationClient(httpclient.NewBaseClient(url), nil).CreateReservation(context.Background(), username, domain.NewReservation{
+	reservation, err := httpclient.NewReservationClient(httpclient.NewBaseClient(url), nil).CreateReservation(authenticated(), domain.NewReservation{
 		BookUID:         bookUID,
 		LibraryUID:      libraryUID,
 		TillDate:        tillDate,
@@ -204,7 +210,7 @@ func TestReservationClientClosesAReservation(t *testing.T) {
 	date, err := domain.ParseDate("2021-10-15")
 	require.NoError(t, err)
 
-	reservation, err := httpclient.NewReservationClient(httpclient.NewBaseClient(url), nil).ReturnReservation(context.Background(), username, reservationUID, date, false)
+	reservation, err := httpclient.NewReservationClient(httpclient.NewBaseClient(url), nil).ReturnReservation(authenticated(), reservationUID, date, false)
 
 	require.NoError(t, err)
 	assert.Equal(t, "/api/v1/reservations/"+reservationUIDVal+"/return", recorded.target)
@@ -217,7 +223,7 @@ func TestReservationClientReportsAnUnknownReservation(t *testing.T) {
 	date, err := domain.ParseDate("2021-10-15")
 	require.NoError(t, err)
 
-	_, err = httpclient.NewReservationClient(httpclient.NewBaseClient(url), nil).ReturnReservation(context.Background(), username, reservationUID, date, false)
+	_, err = httpclient.NewReservationClient(httpclient.NewBaseClient(url), nil).ReturnReservation(authenticated(), reservationUID, date, false)
 
 	assert.ErrorIs(t, err, domain.ErrReservationNotFound)
 }
@@ -227,7 +233,7 @@ func TestReservationClientReportsAClosedReservation(t *testing.T) {
 	date, err := domain.ParseDate("2021-10-15")
 	require.NoError(t, err)
 
-	_, err = httpclient.NewReservationClient(httpclient.NewBaseClient(url), nil).ReturnReservation(context.Background(), username, reservationUID, date, false)
+	_, err = httpclient.NewReservationClient(httpclient.NewBaseClient(url), nil).ReturnReservation(authenticated(), reservationUID, date, false)
 
 	assert.ErrorIs(t, err, domain.ErrReservationClosed)
 }
@@ -235,18 +241,18 @@ func TestReservationClientReportsAClosedReservation(t *testing.T) {
 func TestRatingClientReadsStarsAndTheBookLimit(t *testing.T) {
 	recorded, url := newUpstream(t, `{"stars":75,"maxBooks":25}`)
 
-	rating, err := httpclient.NewRatingClient(httpclient.NewBaseClient(url), nil).GetRating(context.Background(), username)
+	rating, err := httpclient.NewRatingClient(httpclient.NewBaseClient(url), nil).GetRating(authenticated())
 
 	require.NoError(t, err)
 	assert.Equal(t, "/api/v1/rating", recorded.target)
-	assert.Equal(t, username, recorded.headers.Get("X-User-Name"))
+	assert.Equal(t, "Bearer "+token, recorded.headers.Get("Authorization"))
 	assert.Equal(t, domain.Rating{Stars: 75, MaxBooks: 25}, *rating)
 }
 
 func TestRatingClientSendsTheFactsOfAClosedReservation(t *testing.T) {
 	recorded, url := newUpstream(t, `{"delta":-20,"stars":55}`)
 
-	change, err := httpclient.NewRatingClient(httpclient.NewBaseClient(url), nil).CloseReservation(context.Background(), username, domain.ClosedReservation{
+	change, err := httpclient.NewRatingClient(httpclient.NewBaseClient(url), nil).CloseReservation(authenticated(), domain.ClosedReservation{
 		ReservationUID:    reservationUID,
 		Status:            domain.StatusExpired,
 		ConditionAtRent:   domain.ConditionExcellent,
@@ -267,7 +273,7 @@ func TestRatingClientSendsTheFactsOfAClosedReservation(t *testing.T) {
 func TestClientReportsAnUnexpectedStatus(t *testing.T) {
 	url := failingUpstream(t, http.StatusInternalServerError)
 
-	_, err := httpclient.NewRatingClient(httpclient.NewBaseClient(url), nil).GetRating(context.Background(), username)
+	_, err := httpclient.NewRatingClient(httpclient.NewBaseClient(url), nil).GetRating(authenticated())
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unexpected status")

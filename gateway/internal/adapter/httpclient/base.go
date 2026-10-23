@@ -11,10 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Impervguin/ds-lab2/gateway/internal/auth"
 	"github.com/Impervguin/ds-lab2/gateway/internal/usecase"
 )
-
-const UserNameHeader = "X-User-Name"
 
 const requestTimeout = 5 * time.Second
 
@@ -40,7 +39,6 @@ type call struct {
 	method   string
 	path     string
 	query    url.Values
-	username string
 	body     any
 	out      any
 	statuses map[int]error
@@ -97,8 +95,8 @@ func (c *BaseClient) newRequest(ctx context.Context, call call) (*http.Request, 
 	if call.body != nil {
 		request.Header.Set("Content-Type", "application/json")
 	}
-	if call.username != "" {
-		request.Header.Set(UserNameHeader, call.username)
+	if token := auth.Token(ctx); token != "" {
+		request.Header.Set("Authorization", "Bearer "+token)
 	}
 	return request, nil
 }

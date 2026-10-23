@@ -6,13 +6,17 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Impervguin/ds-lab2/gateway/internal/auth"
 	"github.com/Impervguin/ds-lab2/gateway/internal/logger"
 	"github.com/Impervguin/ds-lab2/gateway/internal/usecase"
 )
 
 type work struct {
-	call     call
-	doer     HttpDoer
+	call call
+	doer HttpDoer
+	// identity outlives the request that queued the work, so its token is
+	// still forwarded on retries.
+	identity auth.Identity
 	attempts int
 }
 
@@ -23,7 +27,6 @@ type RetryerConfig struct {
 	MaxDelay       time.Duration
 	AttemptTimeout time.Duration
 }
-
 
 type HttpRetryer struct {
 	queue  *delayQueue
@@ -57,11 +60,12 @@ func (r *HttpRetryer) Run(ctx context.Context) {
 	}
 }
 
-func (r *HttpRetryer) enqueue(doer HttpDoer, call call, cause error) error {
+func (r *HttpRetryer) enqueue(ctx context.Context, doer HttpDoer, call call, cause error) error {
 	// Nobody is waiting for the response any more.
 	call.out = nil
 
-	w := work{call: call, doer: doer}
+	identity, _ := auth.FromContext(ctx)
+	w := work{call: call, doer: doer, identity: identity}
 	if err := r.queue.enqueue(w, r.delay(w.attempts)); err != nil {
 		return err
 	}
@@ -75,7 +79,7 @@ func (r *HttpRetryer) enqueue(doer HttpDoer, call call, cause error) error {
 }
 
 func (r *HttpRetryer) attempt(ctx context.Context, w work) {
-	attemptCtx, cancel := context.WithTimeout(ctx, r.config.AttemptTimeout)
+	attemptCtx, cancel := context.WithTimeout(auth.WithIdentity(ctx, w.identity), r.config.AttemptTimeout)
 	err := w.doer.do(attemptCtx, w.call)
 	cancel()
 
@@ -126,7 +130,7 @@ func doOrQueue(ctx context.Context, doer HttpDoer, retryer *HttpRetryer, inQueue
 		return err
 	}
 
-	if queueErr := retryer.enqueue(doer, call, err); queueErr != nil {
+	if queueErr := retryer.enqueue(ctx, doer, call, err); queueErr != nil {
 		retryer.log.ErrorContext(ctx, "request not queued",
 			slog.String("method", call.method),
 			slog.String("path", call.path),

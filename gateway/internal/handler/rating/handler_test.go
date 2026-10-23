@@ -26,8 +26,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-const username = "Test Max"
-
 var errService = errors.New("service is unavailable")
 
 type suite struct {
@@ -48,13 +46,10 @@ func newSuite(t *testing.T) *suite {
 	return s
 }
 
-func (s *suite) get(t *testing.T, headers map[string]string) *httptest.ResponseRecorder {
+func (s *suite) get(t *testing.T) *httptest.ResponseRecorder {
 	t.Helper()
 
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/rating", nil)
-	for name, value := range headers {
-		request.Header.Set(name, value)
-	}
 
 	recorder := httptest.NewRecorder()
 	s.routes.ServeHTTP(recorder, request)
@@ -64,9 +59,9 @@ func (s *suite) get(t *testing.T, headers map[string]string) *httptest.ResponseR
 func TestGetRatingAnswersWithStars(t *testing.T) {
 	s := newSuite(t)
 
-	s.ratings.On("GetRating", mock.Anything, username).Return(&domain.Rating{Stars: 75, MaxBooks: 25}, nil)
+	s.ratings.On("GetRating", mock.Anything).Return(&domain.Rating{Stars: 75, MaxBooks: 25}, nil)
 
-	recorder := s.get(t, map[string]string{"X-User-Name": username})
+	recorder := s.get(t)
 
 	require.Equal(t, http.StatusOK, recorder.Code)
 	assert.Contains(t, recorder.Header().Get("Content-Type"), "application/json")
@@ -77,21 +72,12 @@ func TestGetRatingAnswersWithStars(t *testing.T) {
 	assert.Equal(t, float64(25), response["maxBooks"])
 }
 
-func TestGetRatingDemandsTheUserName(t *testing.T) {
-	s := newSuite(t)
-
-	recorder := s.get(t, nil)
-
-	assert.Equal(t, http.StatusBadRequest, recorder.Code)
-	assert.Contains(t, recorder.Body.String(), "X-User-Name")
-}
-
 func TestGetRatingAnswersWithFiveHundredWhenTheServiceIsDown(t *testing.T) {
 	s := newSuite(t)
 
-	s.ratings.On("GetRating", mock.Anything, username).Return(nil, errService)
+	s.ratings.On("GetRating", mock.Anything).Return(nil, errService)
 
-	recorder := s.get(t, map[string]string{"X-User-Name": username})
+	recorder := s.get(t)
 
 	require.Equal(t, http.StatusInternalServerError, recorder.Code)
 	assert.Contains(t, recorder.Body.String(), "Internal server error")

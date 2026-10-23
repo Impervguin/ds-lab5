@@ -6,6 +6,10 @@ class CamelModel(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
 
+class ErrorResponse(CamelModel):
+    message: str
+
+
 class ErrorDescription(CamelModel):
     field: str
     error: str

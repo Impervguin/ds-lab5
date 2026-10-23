@@ -20,15 +20,15 @@ type LibraryService interface {
 }
 
 type ReservationService interface {
-	ListReservations(ctx context.Context, username string, status domain.ReservationStatus) ([]domain.Reservation, error)
-	CountReservations(ctx context.Context, username string, status domain.ReservationStatus) (int, error)
-	CreateReservation(ctx context.Context, username string, request domain.NewReservation, inQueue bool) (*domain.Reservation, error)
-	ReturnReservation(ctx context.Context, username string, reservationUID uuid.UUID, date domain.Date, inQueue bool) (*domain.Reservation, error)
+	ListReservations(ctx context.Context, status domain.ReservationStatus) ([]domain.Reservation, error)
+	CountReservations(ctx context.Context, status domain.ReservationStatus) (int, error)
+	CreateReservation(ctx context.Context, request domain.NewReservation, inQueue bool) (*domain.Reservation, error)
+	ReturnReservation(ctx context.Context, reservationUID uuid.UUID, date domain.Date, inQueue bool) (*domain.Reservation, error)
 }
 
 type RatingService interface {
-	GetRating(ctx context.Context, username string) (*domain.Rating, error)
-	CloseReservation(ctx context.Context, username string, closed domain.ClosedReservation, inQueue bool) (*domain.RatingChange, error)
+	GetRating(ctx context.Context) (*domain.Rating, error)
+	CloseReservation(ctx context.Context, closed domain.ClosedReservation, inQueue bool) (*domain.RatingChange, error)
 }
 
 var ErrServiceUnavailable = errors.New("service unavailable")

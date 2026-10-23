@@ -11,8 +11,9 @@ from reservation.main import create_app
 
 from .conftest import BOOK_UID, LIBRARY_UID, USERNAME, make_reservation
 from .fakes import FakeUnitOfWork
+from .tokens import bearer, verifier
 
-HEADERS = {"X-User-Name": USERNAME}
+HEADERS = bearer(USERNAME)
 CREATE_PAYLOAD = {
     "bookUid": str(BOOK_UID),
     "libraryUid": str(LIBRARY_UID),
@@ -25,6 +26,7 @@ CREATE_PAYLOAD = {
 async def client(uow: FakeUnitOfWork) -> AsyncIterator[httpx.AsyncClient]:
     container = Container()
     container.uow.override(providers.Object(uow))
+    container.token_verifier.override(providers.Object(verifier()))
 
     app = create_app(container)
     transport = httpx.ASGITransport(app=app)
@@ -79,19 +81,47 @@ async def test_create_reservation(client, repository):
     assert repository.reservations[0].username == USERNAME
 
 
-@pytest.mark.parametrize(
-    ("headers", "payload", "field"),
-    [
-        ({}, CREATE_PAYLOAD, "X-User-Name"),
-        (HEADERS, CREATE_PAYLOAD | {"conditionAtRent": "PERFECT"}, "conditionAtRent"),
-    ],
-)
-async def test_rejects_an_invalid_request(client, repository, headers, payload, field):
-    response = await client.post("/api/v1/reservations", json=payload, headers=headers)
+async def test_rejects_an_invalid_request(client, repository):
+    response = await client.post(
+        "/api/v1/reservations",
+        json=CREATE_PAYLOAD | {"conditionAtRent": "PERFECT"},
+        headers=HEADERS,
+    )
 
     assert response.status_code == 400
-    assert response.json()["errors"][0]["field"] == field
+    assert response.json()["errors"][0]["field"] == "conditionAtRent"
     assert repository.reservations == []
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [
+        {},
+        {"Authorization": "Bearer not-a-jwt"},
+        {"Authorization": "Basic dXNlcjpwYXNz"},
+        {"X-User-Name": USERNAME},
+    ],
+    ids=["missing", "garbage", "basic", "legacy header"],
+)
+async def test_reservations_require_a_valid_token(client, repository, headers):
+    reservation = make_reservation()
+    repository.reservations = [reservation]
+
+    for response in (
+        await client.get("/api/v1/reservations", headers=headers),
+        await client.get("/api/v1/reservations/count", headers=headers),
+        await client.get(f"/api/v1/reservations/{reservation.reservation_uid}", headers=headers),
+        await client.post("/api/v1/reservations", json=CREATE_PAYLOAD, headers=headers),
+        await client.post(
+            f"/api/v1/reservations/{reservation.reservation_uid}/return",
+            json={"date": "2021-10-15"},
+            headers=headers,
+        ),
+    ):
+        assert response.status_code == 401
+        assert response.headers["WWW-Authenticate"] == "Bearer"
+        assert response.json()["message"]
+    assert repository.reservations == [reservation]
 
 
 async def test_return_reservation(client, repository):

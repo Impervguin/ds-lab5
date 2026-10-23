@@ -14,8 +14,8 @@ func NewRatingUseCase(ratings RatingService) *RatingUseCase {
 	return &RatingUseCase{ratings: ratings}
 }
 
-func (uc *RatingUseCase) GetRating(ctx context.Context, username string) (*domain.Rating, error) {
-	rating, err := uc.ratings.GetRating(ctx, username)
+func (uc *RatingUseCase) GetRating(ctx context.Context) (*domain.Rating, error) {
+	rating, err := uc.ratings.GetRating(ctx)
 	if err != nil {
 		return nil, unavailable(err, ErrRatingUnavailable)
 	}

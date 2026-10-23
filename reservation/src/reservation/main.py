@@ -17,6 +17,8 @@ logger = get_logger(__name__)
 async def lifespan(app: FastAPI):
     container: Container = app.state.container
     settings = container.config()
+    # Fails the start on a missing OIDC setting instead of the first request.
+    container.token_verifier()
 
     await asyncio.to_thread(apply_migrations, settings.database_url, settings.migration_lock_key)
 
@@ -31,7 +33,7 @@ def create_app(container: Container | None = None) -> FastAPI:
     logger.info("creating application")
 
     container = container or Container()
-    container.wire(modules=["reservation.api.reservations.router"])
+    container.wire(modules=["reservation.api.auth", "reservation.api.reservations.router"])
 
     app = FastAPI(title="Reservation Service", lifespan=lifespan)
     app.state.container = container

@@ -78,42 +78,38 @@ var _ usecase.ReservationService = (*ReservationService)(nil)
 
 func (m *ReservationService) ListReservations(
 	ctx context.Context,
-	username string,
 	status domain.ReservationStatus,
 ) ([]domain.Reservation, error) {
-	args := m.Called(ctx, username, status)
+	args := m.Called(ctx, status)
 	reservations, _ := args.Get(0).([]domain.Reservation)
 	return reservations, args.Error(1)
 }
 
 func (m *ReservationService) CountReservations(
 	ctx context.Context,
-	username string,
 	status domain.ReservationStatus,
 ) (int, error) {
-	args := m.Called(ctx, username, status)
+	args := m.Called(ctx, status)
 	return args.Int(0), args.Error(1)
 }
 
 func (m *ReservationService) CreateReservation(
 	ctx context.Context,
-	username string,
 	request domain.NewReservation,
 	inQueue bool,
 ) (*domain.Reservation, error) {
-	args := m.Called(ctx, username, request, inQueue)
+	args := m.Called(ctx, request, inQueue)
 	reservation, _ := args.Get(0).(*domain.Reservation)
 	return reservation, args.Error(1)
 }
 
 func (m *ReservationService) ReturnReservation(
 	ctx context.Context,
-	username string,
 	reservationUID uuid.UUID,
 	date domain.Date,
 	inQueue bool,
 ) (*domain.Reservation, error) {
-	args := m.Called(ctx, username, reservationUID, date, inQueue)
+	args := m.Called(ctx, reservationUID, date, inQueue)
 	reservation, _ := args.Get(0).(*domain.Reservation)
 	return reservation, args.Error(1)
 }
@@ -124,19 +120,18 @@ type RatingService struct {
 
 var _ usecase.RatingService = (*RatingService)(nil)
 
-func (m *RatingService) GetRating(ctx context.Context, username string) (*domain.Rating, error) {
-	args := m.Called(ctx, username)
+func (m *RatingService) GetRating(ctx context.Context) (*domain.Rating, error) {
+	args := m.Called(ctx)
 	rating, _ := args.Get(0).(*domain.Rating)
 	return rating, args.Error(1)
 }
 
 func (m *RatingService) CloseReservation(
 	ctx context.Context,
-	username string,
 	closed domain.ClosedReservation,
 	inQueue bool,
 ) (*domain.RatingChange, error) {
-	args := m.Called(ctx, username, closed, inQueue)
+	args := m.Called(ctx, closed, inQueue)
 	change, _ := args.Get(0).(*domain.RatingChange)
 	return change, args.Error(1)
 }

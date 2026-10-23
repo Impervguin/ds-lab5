@@ -22,15 +22,6 @@ func NewValidator() *validator.Validate {
 	return validate
 }
 
-func Username(w http.ResponseWriter, r *http.Request) (string, bool) {
-	username := r.Header.Get(UserNameHeader)
-	if username == "" {
-		BadParam(w, UserNameHeader, ErrMissingHeader)
-		return "", false
-	}
-	return username, true
-}
-
 func PathUUID(w http.ResponseWriter, r *http.Request, name string) (uuid.UUID, bool) {
 	value, err := UUIDParam(r, name)
 	if err != nil {

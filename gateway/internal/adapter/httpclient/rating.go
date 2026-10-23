@@ -21,13 +21,12 @@ func NewRatingClient(transport HttpDoer, retryer *HttpRetryer) *RatingClient {
 	return &RatingClient{transport: transport, retryer: retryer}
 }
 
-func (c *RatingClient) GetRating(ctx context.Context, username string) (*domain.Rating, error) {
+func (c *RatingClient) GetRating(ctx context.Context) (*domain.Rating, error) {
 	var response ratingResponse
 	if err := c.transport.do(ctx, call{
-		method:   http.MethodGet,
-		path:     "/api/v1/rating",
-		username: username,
-		out:      &response,
+		method: http.MethodGet,
+		path:   "/api/v1/rating",
+		out:    &response,
 	}); err != nil {
 		return nil, err
 	}
@@ -37,15 +36,13 @@ func (c *RatingClient) GetRating(ctx context.Context, username string) (*domain.
 
 func (c *RatingClient) CloseReservation(
 	ctx context.Context,
-	username string,
 	closed domain.ClosedReservation,
 	inQueue bool,
 ) (*domain.RatingChange, error) {
 	var response ratingChangeResponse
 	if err := doOrQueue(ctx, c.transport, c.retryer, inQueue, call{
-		method:   http.MethodPost,
-		path:     "/api/v1/rating/reservation-closed",
-		username: username,
+		method: http.MethodPost,
+		path:   "/api/v1/rating/reservation-closed",
 		body: reservationClosedRequest{
 			ReservationUID:    closed.ReservationUID,
 			ReservationStatus: string(closed.Status),

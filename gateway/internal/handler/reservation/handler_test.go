@@ -29,7 +29,6 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	username          = "Test Max"
 	libraryUIDValue   = "83575e12-7ce0-48ee-9931-51919ff3c9ee"
 	bookUIDValue      = "f7cdc58f-2caf-4b15-9727-f89dcc629b27"
 	reservationUIDVal = "f464ca3a-fcf7-4e3f-86f0-76c7bba96f72"
@@ -72,7 +71,7 @@ func newSuite(t *testing.T) *suite {
 	return s
 }
 
-func (s *suite) do(t *testing.T, method, target, body string, headers map[string]string) *httptest.ResponseRecorder {
+func (s *suite) do(t *testing.T, method, target, body string) *httptest.ResponseRecorder {
 	t.Helper()
 
 	var reader io.Reader
@@ -84,17 +83,10 @@ func (s *suite) do(t *testing.T, method, target, body string, headers map[string
 	if body != "" {
 		request.Header.Set("Content-Type", "application/json")
 	}
-	for name, value := range headers {
-		request.Header.Set(name, value)
-	}
 
 	recorder := httptest.NewRecorder()
 	s.routes.ServeHTTP(recorder, request)
 	return recorder
-}
-
-func asUser() map[string]string {
-	return map[string]string{"X-User-Name": username}
 }
 
 func decode(t *testing.T, recorder *httptest.ResponseRecorder, target any) {
@@ -152,11 +144,11 @@ func rentedReservation(t *testing.T) domain.Reservation {
 func TestListReservationsAnswersWithAnArrayOfEnrichedReservations(t *testing.T) {
 	s := newSuite(t)
 
-	s.reservations.On("ListReservations", mock.Anything, username, domain.ReservationStatus("")).
+	s.reservations.On("ListReservations", mock.Anything, domain.ReservationStatus("")).
 		Return([]domain.Reservation{rentedReservation(t)}, nil)
 	s.catalogueAnswers()
 
-	recorder := s.do(t, http.MethodGet, "/api/v1/reservations", "", asUser())
+	recorder := s.do(t, http.MethodGet, "/api/v1/reservations", "")
 
 	require.Equal(t, http.StatusOK, recorder.Code)
 	assert.Contains(t, recorder.Header().Get("Content-Type"), "application/json")
@@ -175,33 +167,24 @@ func TestListReservationsAnswersWithAnArrayOfEnrichedReservations(t *testing.T) 
 func TestListReservationsAnswersWithAnEmptyArray(t *testing.T) {
 	s := newSuite(t)
 
-	s.reservations.On("ListReservations", mock.Anything, username, domain.ReservationStatus("")).
+	s.reservations.On("ListReservations", mock.Anything, domain.ReservationStatus("")).
 		Return([]domain.Reservation{}, nil)
 
-	recorder := s.do(t, http.MethodGet, "/api/v1/reservations", "", asUser())
+	recorder := s.do(t, http.MethodGet, "/api/v1/reservations", "")
 
 	require.Equal(t, http.StatusOK, recorder.Code)
 	assert.JSONEq(t, "[]", recorder.Body.String())
-}
-
-func TestListReservationsDemandsTheUserName(t *testing.T) {
-	s := newSuite(t)
-
-	recorder := s.do(t, http.MethodGet, "/api/v1/reservations", "", nil)
-
-	assert.Equal(t, http.StatusBadRequest, recorder.Code)
-	assert.Contains(t, recorder.Body.String(), "X-User-Name")
 }
 
 func TestTakeBookAnswersWithTheReservationBookLibraryAndRating(t *testing.T) {
 	s := newSuite(t)
 	reserved := rentedReservation(t)
 
-	s.reservations.On("CountReservations", mock.Anything, username, domain.StatusRented).Return(0, nil)
-	s.ratings.On("GetRating", mock.Anything, username).Return(&domain.Rating{Stars: 75, MaxBooks: 25}, nil)
+	s.reservations.On("CountReservations", mock.Anything, domain.StatusRented).Return(0, nil)
+	s.ratings.On("GetRating", mock.Anything).Return(&domain.Rating{Stars: 75, MaxBooks: 25}, nil)
 	s.libraries.On("TakeBook", mock.Anything, libraryUID, bookUID, false).
 		Return(&domain.BookCopy{Condition: domain.ConditionExcellent, AvailableCount: 0}, nil)
-	s.reservations.On("CreateReservation", mock.Anything, username, domain.NewReservation{
+	s.reservations.On("CreateReservation", mock.Anything, domain.NewReservation{
 		BookUID:         bookUID,
 		LibraryUID:      libraryUID,
 		TillDate:        date(t, "2021-10-11"),
@@ -210,7 +193,7 @@ func TestTakeBookAnswersWithTheReservationBookLibraryAndRating(t *testing.T) {
 	s.catalogueAnswers()
 
 	body := `{"bookUid":"` + bookUIDValue + `","libraryUid":"` + libraryUIDValue + `","tillDate":"2021-10-11"}`
-	recorder := s.do(t, http.MethodPost, "/api/v1/reservations", body, asUser())
+	recorder := s.do(t, http.MethodPost, "/api/v1/reservations", body)
 
 	require.Equal(t, http.StatusOK, recorder.Code)
 
@@ -227,11 +210,11 @@ func TestTakeBookAnswersWithTheReservationBookLibraryAndRating(t *testing.T) {
 func TestTakeBookAnswersWithFourHundredWhenTheLimitIsReached(t *testing.T) {
 	s := newSuite(t)
 
-	s.reservations.On("CountReservations", mock.Anything, username, domain.StatusRented).Return(25, nil)
-	s.ratings.On("GetRating", mock.Anything, username).Return(&domain.Rating{Stars: 75, MaxBooks: 25}, nil)
+	s.reservations.On("CountReservations", mock.Anything, domain.StatusRented).Return(25, nil)
+	s.ratings.On("GetRating", mock.Anything).Return(&domain.Rating{Stars: 75, MaxBooks: 25}, nil)
 
 	body := `{"bookUid":"` + bookUIDValue + `","libraryUid":"` + libraryUIDValue + `","tillDate":"2021-10-11"}`
-	recorder := s.do(t, http.MethodPost, "/api/v1/reservations", body, asUser())
+	recorder := s.do(t, http.MethodPost, "/api/v1/reservations", body)
 
 	assert.Equal(t, http.StatusBadRequest, recorder.Code)
 }
@@ -239,12 +222,12 @@ func TestTakeBookAnswersWithFourHundredWhenTheLimitIsReached(t *testing.T) {
 func TestTakeBookAnswersWithConflictWhenNoCopiesAreLeft(t *testing.T) {
 	s := newSuite(t)
 
-	s.reservations.On("CountReservations", mock.Anything, username, domain.StatusRented).Return(0, nil)
-	s.ratings.On("GetRating", mock.Anything, username).Return(&domain.Rating{Stars: 75, MaxBooks: 25}, nil)
+	s.reservations.On("CountReservations", mock.Anything, domain.StatusRented).Return(0, nil)
+	s.ratings.On("GetRating", mock.Anything).Return(&domain.Rating{Stars: 75, MaxBooks: 25}, nil)
 	s.libraries.On("TakeBook", mock.Anything, libraryUID, bookUID, false).Return(nil, domain.ErrNoAvailableCopies)
 
 	body := `{"bookUid":"` + bookUIDValue + `","libraryUid":"` + libraryUIDValue + `","tillDate":"2021-10-11"}`
-	recorder := s.do(t, http.MethodPost, "/api/v1/reservations", body, asUser())
+	recorder := s.do(t, http.MethodPost, "/api/v1/reservations", body)
 
 	assert.Equal(t, http.StatusConflict, recorder.Code)
 }
@@ -262,7 +245,7 @@ func TestTakeBookRejectsAMalformedRequest(t *testing.T) {
 
 	for name, body := range cases {
 		t.Run(name, func(t *testing.T) {
-			recorder := s.do(t, http.MethodPost, "/api/v1/reservations", body, asUser())
+			recorder := s.do(t, http.MethodPost, "/api/v1/reservations", body)
 			assert.Equal(t, http.StatusBadRequest, recorder.Code)
 		})
 	}
@@ -271,10 +254,10 @@ func TestTakeBookRejectsAMalformedRequest(t *testing.T) {
 func TestTakeBookAnswersWithFiveHundredWhenAServiceIsDown(t *testing.T) {
 	s := newSuite(t)
 
-	s.reservations.On("CountReservations", mock.Anything, username, domain.StatusRented).Return(0, errService)
+	s.reservations.On("CountReservations", mock.Anything, domain.StatusRented).Return(0, errService)
 
 	body := `{"bookUid":"` + bookUIDValue + `","libraryUid":"` + libraryUIDValue + `","tillDate":"2021-10-11"}`
-	recorder := s.do(t, http.MethodPost, "/api/v1/reservations", body, asUser())
+	recorder := s.do(t, http.MethodPost, "/api/v1/reservations", body)
 
 	assert.Equal(t, http.StatusInternalServerError, recorder.Code)
 }
@@ -284,11 +267,11 @@ func TestReturnBookAnswersWithNoContent(t *testing.T) {
 	closed := rentedReservation(t)
 	closed.Status = domain.StatusReturned
 
-	s.reservations.On("ReturnReservation", mock.Anything, username, reservationUID, date(t, "2021-10-11"), false).
+	s.reservations.On("ReturnReservation", mock.Anything, reservationUID, date(t, "2021-10-11"), false).
 		Return(&closed, nil)
 	s.libraries.On("ReturnBook", mock.Anything, libraryUID, bookUID, domain.ConditionExcellent, true).
 		Return(&domain.BookCopy{Condition: domain.ConditionExcellent, AvailableCount: 1}, nil)
-	s.ratings.On("CloseReservation", mock.Anything, username, domain.ClosedReservation{
+	s.ratings.On("CloseReservation", mock.Anything, domain.ClosedReservation{
 		ReservationUID:    reservationUID,
 		Status:            domain.StatusReturned,
 		ConditionAtRent:   domain.ConditionExcellent,
@@ -297,7 +280,7 @@ func TestReturnBookAnswersWithNoContent(t *testing.T) {
 
 	recorder := s.do(t, http.MethodPost,
 		"/api/v1/reservations/"+reservationUIDVal+"/return",
-		`{"condition":"EXCELLENT","date":"2021-10-11"}`, asUser())
+		`{"condition":"EXCELLENT","date":"2021-10-11"}`)
 
 	require.Equal(t, http.StatusNoContent, recorder.Code)
 	assert.Empty(t, recorder.Body.String())
@@ -306,12 +289,12 @@ func TestReturnBookAnswersWithNoContent(t *testing.T) {
 func TestReturnBookAnswersWithNotFoundForAnUnknownReservation(t *testing.T) {
 	s := newSuite(t)
 
-	s.reservations.On("ReturnReservation", mock.Anything, username, reservationUID, date(t, "2021-10-11"), false).
+	s.reservations.On("ReturnReservation", mock.Anything, reservationUID, date(t, "2021-10-11"), false).
 		Return(nil, domain.ErrReservationNotFound)
 
 	recorder := s.do(t, http.MethodPost,
 		"/api/v1/reservations/"+reservationUIDVal+"/return",
-		`{"condition":"EXCELLENT","date":"2021-10-11"}`, asUser())
+		`{"condition":"EXCELLENT","date":"2021-10-11"}`)
 
 	require.Equal(t, http.StatusNotFound, recorder.Code)
 	assert.Contains(t, recorder.Body.String(), "Reservation not found")
@@ -320,12 +303,12 @@ func TestReturnBookAnswersWithNotFoundForAnUnknownReservation(t *testing.T) {
 func TestReturnBookAnswersWithConflictForAClosedReservation(t *testing.T) {
 	s := newSuite(t)
 
-	s.reservations.On("ReturnReservation", mock.Anything, username, reservationUID, date(t, "2021-10-11"), false).
+	s.reservations.On("ReturnReservation", mock.Anything, reservationUID, date(t, "2021-10-11"), false).
 		Return(nil, domain.ErrReservationClosed)
 
 	recorder := s.do(t, http.MethodPost,
 		"/api/v1/reservations/"+reservationUIDVal+"/return",
-		`{"condition":"EXCELLENT","date":"2021-10-11"}`, asUser())
+		`{"condition":"EXCELLENT","date":"2021-10-11"}`)
 
 	assert.Equal(t, http.StatusConflict, recorder.Code)
 }
@@ -335,7 +318,7 @@ func TestReturnBookRejectsAnUnknownCondition(t *testing.T) {
 
 	recorder := s.do(t, http.MethodPost,
 		"/api/v1/reservations/"+reservationUIDVal+"/return",
-		`{"condition":"BURNED","date":"2021-10-11"}`, asUser())
+		`{"condition":"BURNED","date":"2021-10-11"}`)
 
 	assert.Equal(t, http.StatusBadRequest, recorder.Code)
 	assert.Contains(t, recorder.Body.String(), "condition")
@@ -345,18 +328,8 @@ func TestReturnBookRejectsAMalformedReservationUID(t *testing.T) {
 	s := newSuite(t)
 
 	recorder := s.do(t, http.MethodPost, "/api/v1/reservations/not-a-uuid/return",
-		`{"condition":"EXCELLENT","date":"2021-10-11"}`, asUser())
+		`{"condition":"EXCELLENT","date":"2021-10-11"}`)
 
 	assert.Equal(t, http.StatusBadRequest, recorder.Code)
 	assert.Contains(t, recorder.Body.String(), "reservationUid")
-}
-
-func TestReturnBookDemandsTheUserName(t *testing.T) {
-	s := newSuite(t)
-
-	recorder := s.do(t, http.MethodPost,
-		"/api/v1/reservations/"+reservationUIDVal+"/return",
-		`{"condition":"EXCELLENT","date":"2021-10-11"}`, nil)
-
-	assert.Equal(t, http.StatusBadRequest, recorder.Code)
 }

@@ -1,16 +1,13 @@
-from typing import Annotated
-
 from dependency_injector.wiring import Provide, inject
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends
 
+from rating.api.auth import Username
 from rating.di import Container
 from rating.usecases import CloseReservationUseCase, GetRatingUseCase
 
 from .dto import RatingChangeResponse, RatingResponse, ReservationClosedRequest
 
 rating_router = APIRouter(prefix="/api/v1/rating", tags=["rating"])
-
-Username = Annotated[str, Header(alias="X-User-Name", min_length=1, max_length=80)]
 
 
 @rating_router.get("", response_model=RatingResponse)

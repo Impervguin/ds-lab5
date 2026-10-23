@@ -12,12 +12,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const UserNameHeader = "X-User-Name"
-
-var (
-	ErrMissingParam  = errors.New("parameter is required")
-	ErrMissingHeader = errors.New("header is required")
-)
+var ErrMissingParam = errors.New("parameter is required")
 
 func IntQuery(r *http.Request, name string, fallback int) (int, error) {
 	raw := r.URL.Query().Get(name)

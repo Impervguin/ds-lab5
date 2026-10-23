@@ -36,12 +36,7 @@ func (h *ReservationHandler) Register(r chi.Router) {
 }
 
 func (h *ReservationHandler) listReservations(w http.ResponseWriter, r *http.Request) {
-	username, ok := common.Username(w, r)
-	if !ok {
-		return
-	}
-
-	reservations, err := h.reservations.ListReservations(r.Context(), username)
+	reservations, err := h.reservations.ListReservations(r.Context())
 	if err != nil {
 		h.errors.Write(w, r, err)
 		return
@@ -51,11 +46,6 @@ func (h *ReservationHandler) listReservations(w http.ResponseWriter, r *http.Req
 }
 
 func (h *ReservationHandler) takeBook(w http.ResponseWriter, r *http.Request) {
-	username, ok := common.Username(w, r)
-	if !ok {
-		return
-	}
-
 	var request dto.TakeBookRequest
 	if !h.decode(w, r, &request) {
 		return
@@ -67,7 +57,7 @@ func (h *ReservationHandler) takeBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	taken, err := h.reservations.TakeBook(r.Context(), username, command)
+	taken, err := h.reservations.TakeBook(r.Context(), command)
 	if err != nil {
 		h.errors.Write(w, r, err)
 		return
@@ -77,11 +67,6 @@ func (h *ReservationHandler) takeBook(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ReservationHandler) returnBook(w http.ResponseWriter, r *http.Request) {
-	username, ok := common.Username(w, r)
-	if !ok {
-		return
-	}
-
 	reservationUID, ok := common.PathUUID(w, r, "reservationUid")
 	if !ok {
 		return
@@ -98,7 +83,7 @@ func (h *ReservationHandler) returnBook(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	err = h.reservations.ReturnBook(r.Context(), username, usecase.ReturnBookCommand{
+	err = h.reservations.ReturnBook(r.Context(), usecase.ReturnBookCommand{
 		ReservationUID: reservationUID,
 		Condition:      domain.BookCondition(request.Condition),
 		Date:           date,

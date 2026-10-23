@@ -15,9 +15,9 @@ import (
 func TestGetRatingReturnsStarsAndTheBookLimit(t *testing.T) {
 	s := newSuite(t)
 
-	s.ratings.On("GetRating", mock.Anything, username).Return(&domain.Rating{Stars: 75, MaxBooks: 25}, nil)
+	s.ratings.On("GetRating", mock.Anything).Return(&domain.Rating{Stars: 75, MaxBooks: 25}, nil)
 
-	rating, err := usecase.NewRatingUseCase(s.ratings).GetRating(context.Background(), username)
+	rating, err := usecase.NewRatingUseCase(s.ratings).GetRating(context.Background())
 
 	require.NoError(t, err)
 	assert.Equal(t, domain.Rating{Stars: 75, MaxBooks: 25}, *rating)
@@ -26,9 +26,9 @@ func TestGetRatingReturnsStarsAndTheBookLimit(t *testing.T) {
 func TestGetRatingReportsAnUnavailableService(t *testing.T) {
 	s := newSuite(t)
 
-	s.ratings.On("GetRating", mock.Anything, username).Return(nil, errService)
+	s.ratings.On("GetRating", mock.Anything).Return(nil, errService)
 
-	_, err := usecase.NewRatingUseCase(s.ratings).GetRating(context.Background(), username)
+	_, err := usecase.NewRatingUseCase(s.ratings).GetRating(context.Background())
 
 	assert.ErrorIs(t, err, errService)
 }

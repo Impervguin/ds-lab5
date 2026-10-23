@@ -27,12 +27,7 @@ func (h *RatingHandler) Register(r chi.Router) {
 }
 
 func (h *RatingHandler) getRating(w http.ResponseWriter, r *http.Request) {
-	username, ok := common.Username(w, r)
-	if !ok {
-		return
-	}
-
-	rating, err := h.ratings.GetRating(r.Context(), username)
+	rating, err := h.ratings.GetRating(r.Context())
 	if err != nil {
 		h.errors.Write(w, r, err)
 		return

@@ -16,6 +16,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/Impervguin/ds-lab2/gateway/internal/adapter/httpclient"
+	"github.com/Impervguin/ds-lab2/gateway/internal/auth"
 	"github.com/Impervguin/ds-lab2/gateway/internal/handler/health"
 	handlerlibrary "github.com/Impervguin/ds-lab2/gateway/internal/handler/library"
 	handlerrating "github.com/Impervguin/ds-lab2/gateway/internal/handler/rating"
@@ -57,6 +58,19 @@ func run(log *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	// The JWKs keep refreshing until the server has drained.
+	keysCtx, stopKeys := context.WithCancel(context.Background())
+	defer stopKeys()
+	verifier, err := auth.NewVerifier(keysCtx, auth.Config{
+		Issuer:        os.Getenv("OIDC_ISSUER"),
+		Audience:      os.Getenv("OIDC_AUDIENCE"),
+		JWKsURL:       os.Getenv("OIDC_JWKS_URL"),
+		UsernameClaim: env("OIDC_USERNAME_CLAIM", auth.DefaultUsernameClaim),
+	})
+	if err != nil {
+		return fmt.Errorf("configure auth: %w", err)
+	}
+
 	// The retryer outlives the signal: it stops only after the server has
 	// drained, so requests queued by the last handlers are not lost silently.
 	retryer := httpclient.NewHttpRetryer(retryerConfig)
@@ -73,7 +87,7 @@ func run(log *slog.Logger) error {
 
 	server := &http.Server{
 		Addr:              net.JoinHostPort("", env("HTTP_PORT", "8080")),
-		Handler:           newRouter(retryer),
+		Handler:           newRouter(retryer, verifier),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -101,7 +115,7 @@ func run(log *slog.Logger) error {
 	return nil
 }
 
-func newRouter(retryer *httpclient.HttpRetryer) chi.Router {
+func newRouter(retryer *httpclient.HttpRetryer, verifier *auth.Verifier) chi.Router {
 	libraries := httpclient.NewLibraryClient(newTransport(env("LIBRARY_SERVICE_URL", "http://localhost:8060")), retryer)
 	reservations := httpclient.NewReservationClient(newTransport(env("RESERVATION_SERVICE_URL", "http://localhost:8070")), retryer)
 	ratings := httpclient.NewRatingClient(newTransport(env("RATING_SERVICE_URL", "http://localhost:8050")), retryer)
@@ -111,11 +125,16 @@ func newRouter(retryer *httpclient.HttpRetryer) chi.Router {
 	router.Use(middleware.Recoverer)
 
 	health.NewHealthHandler().Register(router)
-	handlerlibrary.NewLibraryHandler(usecase.NewLibraryUseCase(libraries)).Register(router)
-	handlerrating.NewRatingHandler(usecase.NewRatingUseCase(ratings)).Register(router)
-	handlerreservation.NewReservationHandler(
-		usecase.NewReservationUseCase(reservations, libraries, ratings),
-	).Register(router)
+
+	router.Group(func(api chi.Router) {
+		api.Use(verifier.Middleware)
+
+		handlerlibrary.NewLibraryHandler(usecase.NewLibraryUseCase(libraries)).Register(api)
+		handlerrating.NewRatingHandler(usecase.NewRatingUseCase(ratings)).Register(api)
+		handlerreservation.NewReservationHandler(
+			usecase.NewReservationUseCase(reservations, libraries, ratings),
+		).Register(api)
+	})
 
 	return router
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 
+	"github.com/Impervguin/ds-lab2/library/internal/auth"
 	"github.com/Impervguin/ds-lab2/library/internal/handler/health"
 	handlerlibrary "github.com/Impervguin/ds-lab2/library/internal/handler/library"
 	"github.com/Impervguin/ds-lab2/library/internal/logger"
@@ -51,6 +52,19 @@ func run(log *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	// The JWKs keep refreshing until the server has drained.
+	keysCtx, stopKeys := context.WithCancel(context.Background())
+	defer stopKeys()
+	verifier, err := auth.NewVerifier(keysCtx, auth.Config{
+		Issuer:        os.Getenv("OIDC_ISSUER"),
+		Audience:      os.Getenv("OIDC_AUDIENCE"),
+		JWKsURL:       os.Getenv("OIDC_JWKS_URL"),
+		UsernameClaim: env("OIDC_USERNAME_CLAIM", auth.DefaultUsernameClaim),
+	})
+	if err != nil {
+		return fmt.Errorf("configure auth: %w", err)
+	}
+
 	pool, err := openPool(ctx, log)
 	if err != nil {
 		return err
@@ -64,7 +78,7 @@ func run(log *slog.Logger) error {
 
 	server := &http.Server{
 		Addr:              net.JoinHostPort("", env("HTTP_PORT", "8060")),
-		Handler:           newRouter(pool),
+		Handler:           newRouter(pool, verifier),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -92,7 +106,7 @@ func run(log *slog.Logger) error {
 	return nil
 }
 
-func newRouter(pool *pgxpool.Pool) chi.Router {
+func newRouter(pool *pgxpool.Pool, verifier *auth.Verifier) chi.Router {
 	libraries := usecase.NewLibraryUseCase(
 		postgres.NewLibraryRepository(pool),
 		postgres.NewBookRepository(pool),
@@ -104,7 +118,12 @@ func newRouter(pool *pgxpool.Pool) chi.Router {
 	router.Use(middleware.Recoverer)
 
 	health.NewHealthHandler().Register(router)
-	handlerlibrary.NewLibraryHandler(libraries).Register(router)
+
+	router.Group(func(api chi.Router) {
+		api.Use(verifier.Middleware)
+
+		handlerlibrary.NewLibraryHandler(libraries).Register(api)
+	})
 
 	return router
 }

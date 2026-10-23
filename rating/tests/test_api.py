@@ -9,8 +9,9 @@ from rating.main import create_app
 
 from .conftest import RESERVATION_UID, USERNAME, make_rating
 from .fakes import FakeUnitOfWork
+from .tokens import bearer, verifier
 
-HEADERS = {"X-User-Name": USERNAME}
+HEADERS = bearer(USERNAME)
 CLOSED_PAYLOAD = {
     "reservationUid": str(RESERVATION_UID),
     "reservationStatus": "EXPIRED",
@@ -23,6 +24,7 @@ CLOSED_PAYLOAD = {
 async def client(uow: FakeUnitOfWork) -> AsyncIterator[httpx.AsyncClient]:
     container = Container()
     container.uow.override(providers.Object(uow))
+    container.token_verifier.override(providers.Object(verifier()))
 
     transport = httpx.ASGITransport(app=create_app(container))
     async with httpx.AsyncClient(transport=transport, base_url="http://rating") as client:
@@ -42,8 +44,29 @@ async def test_get_rating(client, repository):
     assert response.json() == {"stars": 75, "maxBooks": 25}
 
 
-async def test_get_rating_requires_a_username(client):
-    assert (await client.get("/api/v1/rating")).status_code == 400
+@pytest.mark.parametrize(
+    "headers",
+    [
+        {},
+        {"Authorization": "Bearer not-a-jwt"},
+        {"Authorization": "Basic dXNlcjpwYXNz"},
+        {"X-User-Name": USERNAME},
+    ],
+    ids=["missing", "garbage", "basic", "legacy header"],
+)
+async def test_rating_requires_a_valid_token(client, repository, headers):
+    repository.ratings[USERNAME] = make_rating(75)
+
+    for response in (
+        await client.get("/api/v1/rating", headers=headers),
+        await client.post(
+            "/api/v1/rating/reservation-closed", json=CLOSED_PAYLOAD, headers=headers
+        ),
+    ):
+        assert response.status_code == 401
+        assert response.headers["WWW-Authenticate"] == "Bearer"
+        assert response.json()["message"]
+    assert repository.ratings[USERNAME].stars == 75
 
 
 async def test_reservation_closed(client, repository):
