@@ -195,7 +195,6 @@ build-iPhoneSimulator/
 *.dll
 
 # Fortran module files
-*.mod
 *.smod
 
 # Compiled Static libraries
@@ -356,7 +355,6 @@ local.properties
 *.pdb
 
 # Kernel Module Compile Results
-*.mod*
 *.cmd
 .tmp_versions/
 modules.order
@@ -1234,3 +1232,8 @@ buildNumber.properties
 .mvn/timing.properties
 # https://github.com/takari/maven-wrapper#usage-without-binary-jar
 .mvn/wrapper/maven-wrapper.jar
+# kubeconfig для CI (содержит токен)
+*.kubeconfig
+ca.crt
+.kube/
+k8s/ci-rbac.yaml

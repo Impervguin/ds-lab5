@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-init
+data:
+  init.sql: |
+    CREATE ROLE {{ .Values.app.user }} WITH LOGIN PASSWORD '{{ .Values.app.password }}';
+    {{- range .Values.app.databases }}
+    CREATE DATABASE {{ . }} OWNER {{ $.Values.app.user }};
+    {{- end }}

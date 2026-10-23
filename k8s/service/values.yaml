@@ -1,0 +1,36 @@
+replicaCount: 1
+
+image:
+  repository: ""
+  tag: latest
+  pullPolicy: Always
+
+port: 8080
+
+# Обычные переменные окружения: NAME: value.
+env: {}
+
+secretEnv: {}
+
+probes:
+  path: /manage/health
+  readiness:
+    periodSeconds: 2
+    failureThreshold: 2
+  liveness:
+    initialDelaySeconds: 15
+    periodSeconds: 10
+    failureThreshold: 3
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 256Mi
+
+ingress:
+  enabled: false
+  className: traefik
+  host: ""
+  annotations: {}

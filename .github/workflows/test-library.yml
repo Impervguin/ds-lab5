@@ -1,0 +1,28 @@
+name: library tests
+
+on:
+  workflow_call:
+
+jobs:
+  test:
+    name: library
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: library
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: library/go.mod
+          cache-dependency-path: library/go.sum
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./... -race -count=1

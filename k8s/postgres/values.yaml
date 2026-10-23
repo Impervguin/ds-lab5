@@ -1,0 +1,15 @@
+image:
+  repository: postgres
+  tag: 17-alpine
+  pullPolicy: IfNotPresent
+
+superuser:
+  password: postgres
+
+app:
+  user: program
+  password: test
+  databases:
+    - libraries
+    - ratings
+    - reservations

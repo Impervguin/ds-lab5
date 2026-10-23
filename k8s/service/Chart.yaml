@@ -1,0 +1,5 @@
+apiVersion: v2
+name: service
+description: Universal chart for the Library System services; the release name is the service name
+type: application
+version: 0.1.0

@@ -1,0 +1,10 @@
+image:
+  repository: docker.io/impervguin/ds-lab4-rating
+
+port: 8050
+
+env:
+  LOG_LEVEL: INFO
+
+secretEnv:
+  DATABASE_URL: postgresql://program:test@postgres:5432/ratings

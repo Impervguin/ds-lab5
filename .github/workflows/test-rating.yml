@@ -1,0 +1,29 @@
+name: rating tests
+
+on:
+  workflow_call:
+
+jobs:
+  test:
+    name: rating
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rating
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Poetry
+        run: pipx install poetry==2.4.3
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          cache: poetry
+          cache-dependency-path: rating/poetry.lock
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-ansi
+
+      - name: Test
+        run: poetry run pytest
