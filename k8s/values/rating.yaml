@@ -1,5 +1,5 @@
 image:
-  repository: docker.io/impervguin/ds-lab4-rating
+  repository: docker.io/impervguin/ds-lab5-rating
 
 port: 8050
 

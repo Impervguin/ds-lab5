@@ -4,32 +4,32 @@
   "values": [
     {
       "key": "serviceUrl",
-      "value": "",
+      "value": "https://ds5.lab.impilab.ru",
       "enabled": true
     },
     {
       "key": "identityProviderUrl",
-      "value": "",
+      "value": "https://dev-dvkqkgi8bveeit23.eu.auth0.com",
       "enabled": true
     },
     {
       "key": "username",
-      "value": "",
+      "value": "test@test.com",
       "enabled": true
     },
     {
       "key": "password",
-      "value": "",
+      "value": "ilbtdz8g432mupeu",
       "enabled": true
     },
     {
       "key": "clientId",
-      "value": "",
+      "value": "aKbLQ7yQxA3Dg6wiCDyMT3CezPsUb5UZ",
       "enabled": true
     },
     {
       "key": "clientSecret",
-      "value": "",
+      "value": "wfc3MEYyEYs7V0Zevhb5-HYE296rkrr-3knxcxxtpDqE7W52KOpZUAI-NdMrkdBS",
       "enabled": true
     }
   ],

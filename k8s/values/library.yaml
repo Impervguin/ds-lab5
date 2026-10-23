@@ -1,5 +1,5 @@
 image:
-  repository: docker.io/impervguin/ds-lab4-library
+  repository: docker.io/impervguin/ds-lab5-library
 
 port: 8060
 

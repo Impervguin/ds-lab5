@@ -1,5 +1,5 @@
 image:
-  repository: docker.io/impervguin/ds-lab4-reservation
+  repository: docker.io/impervguin/ds-lab5-reservation
 
 port: 8070
 

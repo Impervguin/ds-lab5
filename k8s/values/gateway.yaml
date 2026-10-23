@@ -1,5 +1,5 @@
 image:
-  repository: docker.io/impervguin/ds-lab4-gateway
+  repository: docker.io/impervguin/ds-lab5-gateway
 
 port: 8080
 
@@ -17,7 +17,7 @@ env:
 
 ingress:
   enabled: true
-  host: ds4.lab.impilab.ru
+  host: ds5.lab.impilab.ru
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.tls: "true"

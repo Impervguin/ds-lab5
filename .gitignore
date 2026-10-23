@@ -1237,3 +1237,4 @@ buildNumber.properties
 ca.crt
 .kube/
 k8s/ci-rbac.yaml
+user.txt

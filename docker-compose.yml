@@ -1,6 +1,6 @@
 services:
   rating:
-    image: docker.io/${DOCKERHUB_USER:?DOCKERHUB_USER is not set}/ds-lab4-rating:${IMAGE_TAG:-latest}
+    image: docker.io/${DOCKERHUB_USER:?DOCKERHUB_USER is not set}/ds-lab5-rating:${IMAGE_TAG:-latest}
     build:
       context: ./rating
       platforms: [linux/amd64, linux/arm64]
@@ -19,7 +19,7 @@ services:
       - "8050:8050"
 
   library:
-    image: docker.io/${DOCKERHUB_USER:?DOCKERHUB_USER is not set}/ds-lab4-library:${IMAGE_TAG:-latest}
+    image: docker.io/${DOCKERHUB_USER:?DOCKERHUB_USER is not set}/ds-lab5-library:${IMAGE_TAG:-latest}
     build:
       context: ./library
       platforms: [linux/amd64, linux/arm64]
@@ -44,7 +44,7 @@ services:
       - "8060:8060"
 
   reservation:
-    image: docker.io/${DOCKERHUB_USER:?DOCKERHUB_USER is not set}/ds-lab4-reservation:${IMAGE_TAG:-latest}
+    image: docker.io/${DOCKERHUB_USER:?DOCKERHUB_USER is not set}/ds-lab5-reservation:${IMAGE_TAG:-latest}
     build:
       context: ./reservation
       platforms: [linux/amd64, linux/arm64]
@@ -63,7 +63,7 @@ services:
       - "8070:8070"
 
   gateway:
-    image: docker.io/${DOCKERHUB_USER:?DOCKERHUB_USER is not set}/ds-lab4-gateway:${IMAGE_TAG:-latest}
+    image: docker.io/${DOCKERHUB_USER:?DOCKERHUB_USER is not set}/ds-lab5-gateway:${IMAGE_TAG:-latest}
     build:
       context: ./gateway
       platforms: [linux/amd64, linux/arm64]
